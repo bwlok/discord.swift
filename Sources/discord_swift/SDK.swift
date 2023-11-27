@@ -1,7 +1,7 @@
 import Foundation
 
 public struct SDK {
-    public static func test() {
+    public static func test(token: String) {
         // Create a websocket with a URL
         let task = URLSession.shared.webSocketTask(with: URL(string: "wss://gateway.discord.gg/?v=10&encoding=json")!)
         // Connect, handles handshake
@@ -11,7 +11,7 @@ public struct SDK {
         let identifyPayload = [
             "op": 2,
             "d": [
-                "token": "your bot token",
+                "token": token,
                 "properties": [
                     "$os": "ios",
                     "$browser": "my_library",
