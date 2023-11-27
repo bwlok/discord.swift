@@ -30,6 +30,8 @@ public struct SDK {
         let identifyMessage = URLSessionWebSocketTask.Message.string(jsonString)
         task.send(identifyMessage) { error in /* Handle error */ }
         
+        var heartbeatInterval: TimeInterval = 0
+        
         // Listen for messages from the server
         task.receive { result in
             switch result {
@@ -39,6 +41,28 @@ public struct SDK {
                 switch message {
                 case .string(let text):
                     print("Received string: \(text)")
+                    
+                    // Parse the JSON response
+                    if let data = text.data(using: .utf8),
+                       let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                       let op = json["op"] as? Int {
+                        
+                        if op == 10, let d = json["d"] as? [String: Any], let interval = d["heartbeat_interval"] as? TimeInterval {
+                            // Save the heartbeat interval
+                            heartbeatInterval = interval / 1000 // Convert to seconds
+                            
+                            // Start sending heartbeats
+                            DispatchQueue.global().async {
+                                while true {
+                                    sleep(UInt32(heartbeatInterval))
+                                    task.sendPing { error in /* Handle error */ }
+                                }
+                            }
+                        } else if op == 9 {
+                            print("Invalid session, please check your token.")
+                        }
+                    }
+                    
                 case .data(let data):
                     print("Received data: \(data)")
                 @unknown default:
@@ -46,7 +70,6 @@ public struct SDK {
                 }
             }
         }
-        task.sendPing { error in /* Handle error */ }
         
         // Delay before closing the socket
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
